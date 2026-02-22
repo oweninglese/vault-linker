@@ -1,0 +1,2 @@
+[console_scripts]
+vault-linker = vault_linker.cli:main
