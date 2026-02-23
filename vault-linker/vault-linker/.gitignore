@@ -20,3 +20,12 @@ venv/
 # Vault-Linker outputs/caches
 out_vault/
 .vault_linker_cache/
+
+# generated / local artifacts
+out_vault/
+projects/out/
+_hubs/
+.vault_linker_cache/
+.venv/
+.pytest_cache/
+__pycache__/

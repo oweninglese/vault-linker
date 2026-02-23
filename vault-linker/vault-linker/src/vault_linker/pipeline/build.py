@@ -50,6 +50,24 @@ def build(cfg: BuildConfig) -> BuildStats:
     def nullish(v) -> bool:
         return v is None or (isinstance(v, str) and v.strip().lower() in {"null", "none", ""})
 
+    def is_meta_file(rel_str: str) -> bool:
+        """
+        Files that should NOT participate in tagging/hubbing/linking because they
+        contain vocab dumps or generated hubs.
+        """
+        s = rel_str.strip().lower()
+        name = s.split("/")[-1]
+        stem = name[:-3] if name.endswith(".md") else name
+
+        if stem in {"tags", "tagfile", "tagsfile", "vocab"}:
+            return True
+        # hub pages themselves (if they exist in input)
+        if name in {"_hubs.md"}:
+            return True
+        if s.startswith("_hubs/"):
+            return True
+        return False
+
     for item in items:
         rel = relpath_under(cfg.input_vault, item.path)
         rel_str = str(rel.as_posix())
@@ -87,12 +105,24 @@ def build(cfg: BuildConfig) -> BuildStats:
         if nullish(fm.data.get("created", None)) and meta.created:
             fm.data["created"] = meta.created
 
-        # Ensure tags key exists even before inference
+        # Always ensure tags key exists
         fm.data["tags"] = normalize_tag_list(fm.data.get("tags", None))
+
+        # ---- Meta files: write cleaned YAML but do not tag/link/hub ----
+        if is_meta_file(rel_str):
+            out_text = dump_frontmatter(fm.data) + fm.body.lstrip("\n")
+            out_path = (cfg.output_vault / rel).resolve()
+            if cfg.dry_run:
+                log.info(f"[dry-run] would write meta: {rel_str}")
+            else:
+                write_text_utf8(out_path, out_text)
+                update_cache(rel_str, normalized, cache)
+            processed += 1
+            continue
 
         title_for_tagging = str(fm.data.get("title", filename_stem))
 
-        # ---- Curated registry tag matches (space/hyphen + case-insensitive already) ----
+        # ---- Curated registry tag matches ----
         res = infer_tags(
             title=title_for_tagging,
             body=fm.body,
@@ -102,13 +132,13 @@ def build(cfg: BuildConfig) -> BuildStats:
         )
         tags = normalize_tag_list(res.tags)
 
-        # ---- Add year tags from body (independent of registry) ----
+        # ---- Add year tags from body ----
         year_tags = extract_year_tags(fm.body)
         tags = normalize_tag_list(tags + year_tags)
 
-        fm.data["tags"] = tags  # always present now
+        fm.data["tags"] = tags
 
-        # ---- Linking: first occurrence per paragraph per tag ----
+        # ---- Linking ----
         body_out = fm.body
         if not cfg.no_links and tags:
             body_out = link_body(body_out, tags)
@@ -122,7 +152,9 @@ def build(cfg: BuildConfig) -> BuildStats:
             write_text_utf8(out_path, out_text)
             update_cache(rel_str, normalized, cache)
 
-        add_refs(hub_index, rel_str, tags)
+        # ---- Hub refs with YAML title ----
+        add_refs(hub_index, rel_str, tags, title=str(fm.data.get("title", filename_stem)))
+
         processed += 1
 
     if not cfg.dry_run:

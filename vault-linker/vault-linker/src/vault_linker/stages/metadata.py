@@ -20,11 +20,44 @@ _RE_AUTHOR = re.compile(r"(?im)^\s*(Author\(s\)|Chapter Author\(s\)|Author):\s*(
 _RE_PUBLISHED = re.compile(r"(?im)^\s*(Published|Publication Date):\s*(.+?)\s*$")
 _RE_YEAR = re.compile(r"\b(18\d{2}|19\d{2}|20\d{2})\b")
 
+# lines that look like YAML keys or boilerplate should never become titles
+_BAD_TITLE_PREFIX = re.compile(
+    r"(?i)^(author|created|source|tags|title)\s*:\s*"
+)
+
+def _sanitize_title(s: str) -> str:
+    s = (s or "").strip()
+    if not s:
+        return ""
+    # Strip leading markdown heading markers
+    s = re.sub(r"^\s*#{1,6}\s+", "", s)
+    # collapse whitespace
+    s = re.sub(r"\s+", " ", s).strip()
+    # cap length
+    if len(s) > 140:
+        s = s[:140].rstrip() + "…"
+    return s
+
+def _looks_like_csv_blob(s: str) -> bool:
+    # crude but effective: lots of commas is usually a tags dump / CSV
+    return s.count(",") >= 8
+
+def _is_bad_fallback_title(s: str) -> bool:
+    if not s:
+        return True
+    if _BAD_TITLE_PREFIX.match(s):
+        return True
+    if _looks_like_csv_blob(s):
+        return True
+    if len(s) > 200:
+        return True
+    return False
+
 def extract_metadata(title_fallback: str, body: str) -> Meta:
     """
-    Uses only the first chunk to avoid scanning megabytes of PDFs.
+    Extract JSTOR-ish metadata; fallback is conservative and rejects garbage titles.
     """
-    head = "\n".join(body.splitlines()[:160])
+    head = "\n".join((body or "").splitlines()[:220])
 
     # Source URL preference: Stable URL > Source URL line
     source = None
@@ -36,7 +69,7 @@ def extract_metadata(title_fallback: str, body: str) -> Meta:
         if m2:
             source = m2.group(2).strip()
 
-    # Title preference: Chapter Title > Title: > Book Title (fallback) > filename fallback
+    # Title preference: Chapter Title > Title: > Book Title (fallback) > safe first-line fallback > filename stem
     title = None
     m = _RE_CHAPTER_TITLE.search(head)
     if m:
@@ -48,22 +81,26 @@ def extract_metadata(title_fallback: str, body: str) -> Meta:
         else:
             m = _RE_BOOK_TITLE.search(head)
             if m:
-                # Book title isn't the chapter/article title, but better than null
                 title = m.group(1).strip()
 
+    title = _sanitize_title(title or "")
+
     if not title:
-        # As a last resort, use first non-empty line before boilerplate
+        # conservative fallback: first non-empty “real” line
         for ln in head.splitlines():
             ln = ln.strip()
             if not ln:
                 continue
-            if ln.lower().startswith(("jstor", "this content downloaded", "all use subject")):
+            low = ln.lower()
+            if low.startswith(("jstor", "this content downloaded", "all use subject")):
                 continue
-            title = ln
+            if _is_bad_fallback_title(ln):
+                continue
+            title = _sanitize_title(ln)
             break
 
-    if not title:
-        title = title_fallback
+    if not title or _is_bad_fallback_title(title):
+        title = _sanitize_title(title_fallback) or title_fallback
 
     # Author
     author = None
