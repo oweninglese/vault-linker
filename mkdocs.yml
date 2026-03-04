@@ -1,0 +1,57 @@
+site_name: Vault-Linker 3.0
+site_description: Deterministic Markdown transformation engine with stable planning and idempotent application.
+repo_name: oweninglese/vault-linker
+repo_url: https://github.com/oweninglese/vault-linker
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+  palette:
+    - scheme: slate
+      primary: green
+      accent: cyan
+
+nav:
+  - Overview: index.md
+  - 3.0 Specification:
+      - Authoritative Spec: spec/specification.md
+      - Deterministic Guarantees: guarantees/determinism.md
+      - Idempotency Rules: guarantees/idempotency.md
+      - Encoding Policy: guarantees/encoding-policy.md
+      - YAML Safety Rules: guarantees/yaml-safety.md
+      - Link Insertion Constraints: guarantees/link-constraints.md
+  - Architecture:
+      - System Layers: architecture/layers.md
+      - Data Models: architecture/models.md
+      - Pipeline Flow: architecture/pipeline.md
+  - CLI Surface:
+      - Commands: cli/commands.md
+      - Flags: cli/flags.md
+  - Internals:
+      - Indexer: internals/indexer.md
+      - Planner: internals/planner.md
+      - Applier: internals/applier.md
+      - Reporting: internals/reporting.md
+  - Testing:
+      - Determinism Tests: testing/determinism.md
+      - Idempotency Tests: testing/idempotency.md
+      - Encoding Tests: testing/encoding.md
+      - YAML Tests: testing/yaml.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight

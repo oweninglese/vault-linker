@@ -1,0 +1,128 @@
+
+# =========================
+# Python bytecode / cache
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# =========================
+# Virtual environments
+# =========================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
+
+# =========================
+# Distribution / packaging
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+MANIFEST
+
+# =========================
+# Installer logs
+# =========================
+pip-log.txt
+pip-delete-this-directory.txt
+
+# =========================
+# Test / coverage
+# =========================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache/
+pytest_cache/
+coverage.xml
+nosetests.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# =========================
+# Type checking
+# =========================
+.mypy_cache/
+.pytype/
+.pyre/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+*.env
+
+# =========================
+# Local config
+# =========================
+*.local
+config.local.py
+
+# =========================
+# SQLite databases
+# =========================
+*.sqlite3
+db.sqlite3
+
+# =========================
+# PyInstaller
+# =========================
+*.spec
+
+# =========================
+# Ruff / Black
+# =========================
+.ruff_cache/
+.black/
+
+# =========================
+# Temporary files
+# =========================
+tmp/
+temp/
+.linker_cache.json
+__pycache__/
+*.py[cod]
+

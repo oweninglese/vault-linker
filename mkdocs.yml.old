@@ -1,0 +1,65 @@
+site_name: Vault-Linker
+site_description: Deterministic Markdown transformation pipeline with a vault index, diagnostics, and idempotent linking.
+site_url: http://localhost:8000/
+repo_name: oweninglese/vault-linker
+repo_url: https://github.com/oweninglese/vault-linker
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.action.edit
+    - content.code.copy
+  palette:
+    - scheme: slate
+      primary: green
+      accent: blue
+
+nav:
+  - Home: index.md
+  - Overview:
+      - Conceptual Overview: overview/conceptual-overview.md
+      - Architecture: overview/architecture.md
+      - Determinism & Idempotency: overview/determinism-idempotency.md
+      - Failure Modes & Constraints: overview/failure-modes.md
+  - Getting Started:
+      - Installation From Zero: getting-started/installation-from-zero.md
+      - Minimal Working Example: getting-started/minimal-working-example.md
+      - CLI Quickstart: getting-started/cli-quickstart.md
+  - API:
+      - Public API Surface: api/public-api.md
+      - Data Models: api/models.md
+      - Diagnostics & Reporting: api/diagnostics-reporting.md
+  - Dev:
+      - Tests: dev/tests.md
+      - Logging: dev/logging.md
+      - Release Checklist: dev/release-checklist.md
+
+plugins:
+  - search
+  - awesome-pages
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.inlinehilite
+  - pymdownx.highlight
+

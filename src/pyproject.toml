@@ -1,0 +1,13 @@
+[project]
+name = "vault-linker"
+version = "3.0.0"
+dependencies = [
+    "pydantic>=2.0",
+    "loguru",
+    "rich",
+    "atomicwrites",
+    "pyyaml"
+]
+
+[project.scripts]
+vault-linker = "vault_linker.__main__:main"

@@ -1,0 +1,13 @@
+[project]
+name = "vault-linker"
+version = "3.0.5"
+dependencies = [
+    "pydantic>=2.0",
+    "loguru",
+    "rich",
+    "atomicwrites",
+    "pyyaml"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
