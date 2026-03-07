@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 from .config import Config
@@ -22,6 +24,14 @@ def main() -> int:
     r.add_argument("--reindex", action="store_true")
     r.add_argument("--verbose", action="store_true")
     r.add_argument("--repair-frontmatter", action="store_true")
+    r.add_argument("--json-report", action="store_true")
+    r.add_argument(
+        "--linkify-mode",
+        type=int,
+        choices=[1, 2, 3],
+        default=1,
+        help="1=once per file, 2=once per paragraph (future), 3=all occurrences (future)",
+    )
 
     r.add_argument("--discover", action="store_true")
     r.add_argument("--discover-min-count", type=int, default=3)
@@ -57,6 +67,7 @@ def main() -> int:
         verbose=args.verbose,
         repair_frontmatter=args.repair_frontmatter,
         allow_missing_tagsfile=args.allow_missing_tagsfile,
+        linkify_mode=args.linkify_mode,
     )
 
     stats = run(
@@ -71,12 +82,16 @@ def main() -> int:
         discover_acronyms=args.discover_acronyms,
     )
 
-    print(
-        f"[vault-linker] terms={stats.terms} scanned={stats.scanned} processed={stats.processed} "
-        f"wrote_notes={stats.wrote_notes} inserted_links={stats.inserted_links} "
-        f"hubs_updated={stats.hubs_updated} hubs_scrubbed={stats.hubs_scrubbed} "
-        f"candidates_written={stats.candidates_written} diagnostics={stats.diagnostics}"
-    )
+    if args.json_report:
+        print(json.dumps(asdict(stats), indent=2))
+    else:
+        print(
+            f"[vault-linker] terms={stats.terms} scanned={stats.scanned} processed={stats.processed} "
+            f"wrote_notes={stats.wrote_notes} inserted_links={stats.inserted_links} "
+            f"hubs_updated={stats.hubs_updated} hubs_scrubbed={stats.hubs_scrubbed} "
+            f"candidates_written={stats.candidates_written} diagnostics={stats.diagnostics} "
+            f"elapsed_ms={stats.elapsed_ms}"
+        )
     return 0
 
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
 import sqlite3
-import yaml
+import time
 
 from .config import Config
-from .diagnostics import Diagnostic
 from .index import (
     ensure_db,
     iter_markdown_files,
@@ -21,7 +20,7 @@ from .io_handler import decode_bytes_strict, atomic_write
 from .parse import parse_note_text, render_frontmatter
 from .tag_vocab import load_terms_from_tagfile
 from .aho import AhoCorasick
-from .linker import link_first_per_file
+from .linker import link_matches
 from .meta import infer_title, extract_author, extract_source, mtime_rfc2822_utc, merge_tags
 from .hubs import update_hub_page, scrub_all_hubs
 from .infer import InferConfig, infer_candidates, aggregate_candidates
@@ -38,6 +37,7 @@ class RunStats:
     terms: int
     candidates_written: int
     diagnostics: int = 0
+    elapsed_ms: int = 0
 
 
 def run(
@@ -51,6 +51,8 @@ def run(
     discover_out: Path | None = None,
     discover_acronyms: bool = False,
 ) -> RunStats:
+    t0 = time.perf_counter()
+
     if config.tags_file is not None and isinstance(config.tags_file, str):
         config.tags_file = Path(config.tags_file)
 
@@ -82,7 +84,9 @@ def run(
             con.rollback()
         else:
             con.commit()
-        return stats
+
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        return RunStats(**{**asdict(stats), "elapsed_ms": elapsed_ms})
     finally:
         con.close()
 
@@ -164,7 +168,11 @@ def _run_with_db(
         new_body = note.body
         links_added = 0
         if config.link_bodies and matches:
-            new_body, _, links_added = link_first_per_file(note.body, matches)
+            new_body, _, links_added = link_matches(
+                note.body,
+                matches,
+                linkify_mode=config.linkify_mode,
+            )
 
         new_text = note.text
 
@@ -184,7 +192,6 @@ def _run_with_db(
 
             new_text = render_frontmatter(fm) + new_body.lstrip("\n")
         else:
-            # Preserve malformed frontmatter exactly; do not YAML-rewrite.
             new_text = _render_preserved_invalid_frontmatter(note.raw_frontmatter, new_body)
 
         if new_text != note.text:
@@ -269,4 +276,5 @@ def _run_with_db(
         terms=len(terms),
         candidates_written=candidates_written,
         diagnostics=diagnostics_count,
+        elapsed_ms=0,
     )

@@ -16,6 +16,11 @@ class Config(BaseModel):
     repair_frontmatter: bool = False
     allow_missing_tagsfile: bool = False
 
+    # 1 = once per file
+    # 2 = once per paragraph (future)
+    # 3 = all occurrences (future)
+    linkify_mode: int = 1
+
     tags_file: Path | None = None
     candidates_file: Path = Path(".vault-linker/tag_candidates.txt")
 

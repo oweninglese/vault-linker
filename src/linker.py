@@ -31,7 +31,23 @@ def _in_spans(i: int, spans: list[tuple[int, int]]) -> bool:
     return False
 
 
-def link_first_per_file(body: str, matches: list[tuple[int, int, str]]) -> tuple[str, set[str], int]:
+def link_matches(
+    body: str,
+    matches: list[tuple[int, int, str]],
+    linkify_mode: int = 1,
+) -> tuple[str, set[str], int]:
+    """
+    linkify_mode:
+      1 = first occurrence per file
+      2 = once per paragraph (future)
+      3 = all valid occurrences (future)
+    """
+    if linkify_mode != 1:
+        raise NotImplementedError(
+            f"linkify_mode={linkify_mode} is reserved for a future release. "
+            "Currently only mode 1 (once per file) is implemented."
+        )
+
     if not matches:
         return body, set(), 0
 
@@ -63,3 +79,7 @@ def link_first_per_file(body: str, matches: list[tuple[int, int, str]]) -> tuple
 
     out_parts.append(body[cur:])
     return "".join(out_parts), found, links_inserted
+
+
+def link_first_per_file(body: str, matches: list[tuple[int, int, str]]) -> tuple[str, set[str], int]:
+    return link_matches(body, matches, linkify_mode=1)
