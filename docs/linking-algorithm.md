@@ -29,26 +29,33 @@ for the note scan, after automaton construction.
 
 ---
 
-# Current Linking Policy
+# Linking Modes
 
-Current policy:
+Vault-Linker supports three link density modes.
+
+## Mode 1
 
 once per file
 
-That means the first valid occurrence of each term is linked, and later occurrences in the same note are left alone.
+The first valid occurrence of each term is linked in the file body.
 
-This was chosen because it:
+## Mode 2
 
-- avoids link spam
-- keeps notes readable
-- produces stable diffs
-- reduces accidental overlinking
+once per paragraph
+
+The first valid occurrence of each term is linked independently within each paragraph.
+
+## Mode 3
+
+all valid occurrences
+
+Every valid plain-text occurrence is linked.
 
 ---
 
 # Protected Contexts
 
-Vault-Linker does not insert links inside:
+All modes skip:
 
 - fenced code blocks
 - inline code
@@ -58,21 +65,20 @@ Vault-Linker does not insert links inside:
 
 ---
 
-# Future Feature: Linkify Ratio
+# Idempotency
 
-A configurable linking density is planned.
+The linker treats existing wikilinks as already linked.
 
-Option | Behavior
------- | --------
-1 | once per file
-2 | once per paragraph
-3 | all valid occurrences
+That prevents repeated runs from progressively linking the second, third, or later occurrences of the same term in mode 1 or mode 2.
 
-This will likely be exposed as:
+Mode 3 is also idempotent because existing wikilinks are skipped as protected spans.
 
---linkify-mode
+---
 
-Current status:
+# Trade-off
 
-mode 1 implemented  
-modes 2 and 3 reserved for future work
+Mode 1 is the least noisy and safest default.
+
+Mode 2 is useful when long notes need local paragraph-level navigability.
+
+Mode 3 is the most aggressive and can create dense link coverage, which may be desirable for certain research or graph-heavy vaults.

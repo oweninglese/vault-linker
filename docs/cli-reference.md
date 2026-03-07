@@ -45,6 +45,10 @@ Minimum frequency for candidate output.
 
 Includes acronym discovery.
 
+--discover-out
+
+Writes candidate suggestions to a specific file.
+
 --repair-frontmatter
 
 Allows rewriting malformed frontmatter.
@@ -55,11 +59,19 @@ Outputs the final report as JSON.
 
 --linkify-mode
 
-1 = once per file  
-2 = once per paragraph (future)  
-3 = all occurrences (future)
+Controls link insertion density.
 
-Current implementation supports only mode 1.
+1 = once per file  
+2 = once per paragraph  
+3 = all valid occurrences
+
+All modes still skip:
+
+- fenced code blocks
+- inline code
+- existing wiki-links
+- markdown links
+- URLs
 
 ---
 
@@ -103,4 +115,17 @@ Output unlink results as JSON.
 
 python -m src.cli unlink ~/vaults/vault --tagfile ~/vaults/tags/TAGS.csv
 
-python -m src.cli run ~/vaults/vault --tagfile ~/vaults/tags/TAGS.csv --verbose
+python -m src.cli run ~/vaults/vault --tagfile ~/vaults/tags/TAGS.csv --hub-dir .vault-linker/hubs --verbose
+
+---
+
+# Example discovery flow
+
+python -m src.cli run ~/vaults/vault \
+  --tagfile ~/vaults/tags/TAGS.csv \
+  --hub-dir .vault-linker/hubs \
+  --discover \
+  --discover-min-count 1 \
+  --discover-out ~/vaults/vault/.vault-linker/tag_candidates.txt \
+  --reindex \
+  --verbose

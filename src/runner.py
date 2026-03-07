@@ -239,7 +239,10 @@ def _run_with_db(
         if note.frontmatter_valid or not note.has_frontmatter or config.repair_frontmatter:
             fm = dict(note.frontmatter)
 
-            fm["created"] = mtime_rfc2822_utc(path)
+            # Only set created once, if missing.
+            if not (isinstance(fm.get("created"), str) and fm.get("created").strip()):
+                fm["created"] = mtime_rfc2822_utc(path)
+
             fm["title"] = infer_title(fm, note.body, path)
 
             if not (isinstance(fm.get("author"), str) and fm.get("author").strip()):
@@ -259,9 +262,7 @@ def _run_with_db(
             inserted_links += links_added
             if not dry_run:
                 atomic_write(path, new_text, encoding="utf-8")
-
-                # Critical: refresh cache metadata AFTER write
-                new_raw, new_sha1 = read_bytes_and_hash(path)
+                _, new_sha1 = read_bytes_and_hash(path)
                 new_mtime_ns, new_size = stat_file(path)
                 upsert_file(con, rel, new_mtime_ns, new_size, new_sha1)
                 replace_mentions(con, rel, found_terms)
@@ -405,7 +406,7 @@ def _unlink_with_db(
             removed_links += removed
             if not dry_run:
                 atomic_write(path, new_text, encoding="utf-8")
-                new_raw, new_sha1 = read_bytes_and_hash(path)
+                _, new_sha1 = read_bytes_and_hash(path)
                 new_mtime_ns, new_size = stat_file(path)
                 upsert_file(con, rel, new_mtime_ns, new_size, new_sha1)
                 replace_mentions(con, rel, set())

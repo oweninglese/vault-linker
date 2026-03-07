@@ -30,12 +30,15 @@ The system is designed to operate on large Markdown collections such as:
 - [Architecture](architecture.md)
 - [Data Flow](data-flow.md)
 - [Linking Algorithm](linking-algorithm.md)
-- [SQLite Index](sqlite-index.md)
 
 ## File Formats
 
 - [Tagfile Format](tagfile-format.md)
 - [Hub Pages](hub-pages.md)
+
+## Discovery and Vocabulary
+
+- [Candidate Discovery](candidate-discovery.md)
 
 ## Development
 
