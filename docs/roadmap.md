@@ -18,6 +18,19 @@ Modes 2 and 3 are planned.
 
 ---
 
+# Controlled Reset Options
+
+The unlink command now supports vocabulary-aware reset.
+
+Future improvements may include:
+
+- unlink only body links
+- unlink while preserving aliased display text exactly
+- unlink by hub scope
+- unlink by note subset
+
+---
+
 # Graph Export
 
 Export the knowledge graph to formats such as:

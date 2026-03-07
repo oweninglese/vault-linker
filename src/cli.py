@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .config import Config
-from .runner import run
+from .runner import run, unlink
 
 
 def main() -> int:
@@ -32,27 +32,36 @@ def main() -> int:
         default=1,
         help="1=once per file, 2=once per paragraph (future), 3=all occurrences (future)",
     )
-
     r.add_argument("--discover", action="store_true")
     r.add_argument("--discover-min-count", type=int, default=3)
     r.add_argument("--discover-out", type=Path, default=None)
     r.add_argument("--discover-acronyms", action="store_true")
 
+    u = sub.add_parser("unlink")
+    u.add_argument("vault", type=Path)
+    u.add_argument("--tagfile", type=Path, required=True)
+    u.add_argument("--hub-dir", type=str, default="")
+    u.add_argument("--db", type=Path, default=None)
+    u.add_argument("--dry-run", action="store_true")
+    u.add_argument("--reindex", action="store_true")
+    u.add_argument("--verbose", action="store_true")
+    u.add_argument("--json-report", action="store_true")
+
     args = parser.parse_args()
 
-    if args.cmd != "run":
-        parser.error("Only the 'run' command is supported.")
+    if args.cmd not in {"run", "unlink"}:
+        parser.error("Only the 'run' and 'unlink' commands are supported.")
 
     vault = args.vault.expanduser().resolve()
     if not vault.exists() or not vault.is_dir():
         raise SystemExit(f"Vault does not exist or is not a directory: {vault}")
 
     tagfile = None
-    if args.tagfile is not None:
+    if getattr(args, "tagfile", None) is not None:
         tagfile = args.tagfile.expanduser().resolve()
         if not tagfile.exists() or not tagfile.is_file():
             raise SystemExit(f"Tag file does not exist or is not a file: {tagfile}")
-    elif not args.allow_missing_tagsfile:
+    elif args.cmd == "run" and not args.allow_missing_tagsfile:
         raise SystemExit("Missing required --tagfile (or use --allow-missing-tagsfile)")
 
     hub_dir_path = (vault / args.hub_dir.strip()).resolve() if args.hub_dir.strip() else None
@@ -62,36 +71,52 @@ def main() -> int:
         vault=vault,
         tags_file=tagfile,
         hub_dir=hub_dir_path,
-        link_bodies=not args.no_link_bodies,
+        link_bodies=not getattr(args, "no_link_bodies", False),
         dry_run=args.dry_run,
         verbose=args.verbose,
-        repair_frontmatter=args.repair_frontmatter,
-        allow_missing_tagsfile=args.allow_missing_tagsfile,
-        linkify_mode=args.linkify_mode,
+        repair_frontmatter=getattr(args, "repair_frontmatter", False),
+        allow_missing_tagsfile=getattr(args, "allow_missing_tagsfile", False),
+        linkify_mode=getattr(args, "linkify_mode", 1),
     )
 
-    stats = run(
-        cfg,
-        db_path=db_path,
-        dry_run=args.dry_run,
-        verbose=args.verbose,
-        reindex=args.reindex,
-        discover=args.discover,
-        discover_min_count=args.discover_min_count,
-        discover_out=args.discover_out,
-        discover_acronyms=args.discover_acronyms,
-    )
+    if args.cmd == "run":
+        stats = run(
+            cfg,
+            db_path=db_path,
+            dry_run=args.dry_run,
+            verbose=args.verbose,
+            reindex=args.reindex,
+            discover=args.discover,
+            discover_min_count=args.discover_min_count,
+            discover_out=args.discover_out,
+            discover_acronyms=args.discover_acronyms,
+        )
+    else:
+        stats = unlink(
+            cfg,
+            db_path=db_path,
+            dry_run=args.dry_run,
+            verbose=args.verbose,
+            reindex=args.reindex,
+        )
 
     if args.json_report:
         print(json.dumps(asdict(stats), indent=2))
     else:
-        print(
-            f"[vault-linker] terms={stats.terms} scanned={stats.scanned} processed={stats.processed} "
-            f"wrote_notes={stats.wrote_notes} inserted_links={stats.inserted_links} "
-            f"hubs_updated={stats.hubs_updated} hubs_scrubbed={stats.hubs_scrubbed} "
-            f"candidates_written={stats.candidates_written} diagnostics={stats.diagnostics} "
-            f"elapsed_ms={stats.elapsed_ms}"
-        )
+        if args.cmd == "run":
+            print(
+                f"[vault-linker] terms={stats.terms} scanned={stats.scanned} processed={stats.processed} "
+                f"wrote_notes={stats.wrote_notes} inserted_links={stats.inserted_links} "
+                f"hubs_updated={stats.hubs_updated} hubs_scrubbed={stats.hubs_scrubbed} "
+                f"candidates_written={stats.candidates_written} diagnostics={stats.diagnostics} "
+                f"elapsed_ms={stats.elapsed_ms}"
+            )
+        else:
+            print(
+                f"[vault-linker:unlink] terms={stats.terms} scanned={stats.scanned} processed={stats.processed} "
+                f"wrote_notes={stats.wrote_notes} removed_links={stats.removed_links} "
+                f"diagnostics={stats.diagnostics} elapsed_ms={stats.elapsed_ms}"
+            )
     return 0
 
 

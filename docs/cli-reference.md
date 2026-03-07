@@ -1,132 +1,106 @@
 # CLI Reference
 
-Vault-Linker currently exposes one main command:
+Vault-Linker currently exposes two commands:
 
-vault-linker run
+run  
+unlink
 
 ---
 
-# Basic Usage
+# run
+
+Processes the vault normally.
+
+Basic usage:
 
 python -m src.cli run <vault> --tagfile TAGS.csv
 
----
-
-# Required Arguments
-
-vault
-
-Path to the Markdown vault directory.
-
---tagfile
-
-Path to the approved tag vocabulary file.
-
----
-
-# Optional Flags
+## Important flags
 
 --dry-run
 
-Runs the engine without writing changes.
-
----
+Runs without writing changes.
 
 --verbose
 
-Prints progress information during execution.
-
----
+Shows progress.
 
 --reindex
 
-Forces a full rebuild of the SQLite cache/index.
-
----
+Forces a full rebuild.
 
 --hub-dir
 
-Directory where hub pages should be written.
-
-Default:
-
-vault root
-
----
+Sets the hub output directory.
 
 --discover
 
-Infers candidate tags from titles and note bodies.
-
----
+Infers candidate tags.
 
 --discover-min-count
 
-Minimum vault-wide count required for a discovered candidate.
-
-Default: 3
-
----
+Minimum frequency for candidate output.
 
 --discover-acronyms
 
-Includes acronym detection during candidate discovery.
-
----
+Includes acronym discovery.
 
 --repair-frontmatter
 
-Allows rewriting malformed frontmatter into normalized YAML.
-
-Use carefully.
-
----
+Allows rewriting malformed frontmatter.
 
 --json-report
 
-Outputs the final run report as JSON.
-
-Useful for:
-
-CI
-automation
-benchmark capture
-future dashboards
-
----
+Outputs the final report as JSON.
 
 --linkify-mode
-
-Configures link insertion density.
 
 1 = once per file  
 2 = once per paragraph (future)  
 3 = all occurrences (future)
 
-Current implementation supports only:
-
-1
-
-Modes 2 and 3 are reserved and intentionally fail clearly.
+Current implementation supports only mode 1.
 
 ---
 
-# Example
+# unlink
+
+Removes wikilinks only when their target is in the approved tagfile.
+
+Basic usage:
+
+python -m src.cli unlink <vault> --tagfile TAGS.csv
+
+This is designed for controlled reset testing.
+
+It allows you to:
+
+1. strip approved-term links
+2. rerun the linker
+3. prove the engine is actually reinserting them
+
+## Important flags
+
+--dry-run
+
+Preview removals without writing.
+
+--verbose
+
+Show progress.
+
+--reindex
+
+Force full pass.
+
+--json-report
+
+Output unlink results as JSON.
+
+---
+
+# Example reset flow
+
+python -m src.cli unlink ~/vaults/vault --tagfile ~/vaults/tags/TAGS.csv
 
 python -m src.cli run ~/vaults/vault --tagfile ~/vaults/tags/TAGS.csv --verbose
-
----
-
-# Example with JSON report
-
-python -m src.cli run ~/vaults/vault \
-  --tagfile ~/vaults/tags/TAGS.csv \
-  --json-report
-
----
-
-# Example future-facing linkify scaffold
-
-python -m src.cli run ~/vaults/vault \
-  --tagfile ~/vaults/tags/TAGS.csv \
-  --linkify-mode 1

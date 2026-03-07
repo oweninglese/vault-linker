@@ -31,6 +31,33 @@ def _in_spans(i: int, spans: list[tuple[int, int]]) -> bool:
     return False
 
 
+def _extract_existing_wikilink_targets(text: str) -> set[str]:
+    """
+    Return lowercased base targets already linked in [[...]] blocks.
+
+    Examples:
+      [[Canada]] -> canada
+      [[Canada|CA]] -> canada
+      [[Canada#History]] -> canada
+      [[Canada#History|CA]] -> canada
+    """
+    linked: set[str] = set()
+
+    for m in _WIKILINK.finditer(text):
+        inner = m.group(0)[2:-2].strip()
+        if not inner:
+            continue
+
+        target = inner.split("|", 1)[0].strip()
+        if "#" in target:
+            target = target.split("#", 1)[0].strip()
+
+        if target:
+            linked.add(target.lower())
+
+    return linked
+
+
 def link_matches(
     body: str,
     matches: list[tuple[int, int, str]],
@@ -52,9 +79,12 @@ def link_matches(
         return body, set(), 0
 
     skip = _collect_skip_spans(body)
-    linked: set[str] = set()
-    found: set[str] = set()
 
+    # Critical for idempotency:
+    # any term already present in an existing wikilink counts as already linked.
+    linked: set[str] = _extract_existing_wikilink_targets(body)
+
+    found: set[str] = set()
     out_parts: list[str] = []
     cur = 0
     links_inserted = 0

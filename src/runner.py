@@ -21,8 +21,9 @@ from .parse import parse_note_text, render_frontmatter
 from .tag_vocab import load_terms_from_tagfile
 from .aho import AhoCorasick
 from .linker import link_matches
+from .unlinker import unlink_approved_wikilinks
 from .meta import infer_title, extract_author, extract_source, mtime_rfc2822_utc, merge_tags
-from .hubs import update_hub_page, scrub_all_hubs
+from .hubs import update_hub_page, is_managed_hub
 from .infer import InferConfig, infer_candidates, aggregate_candidates
 
 
@@ -36,6 +37,17 @@ class RunStats:
     hubs_scrubbed: int
     terms: int
     candidates_written: int
+    diagnostics: int = 0
+    elapsed_ms: int = 0
+
+
+@dataclass(frozen=True)
+class UnlinkStats:
+    scanned: int
+    processed: int
+    wrote_notes: int
+    removed_links: int
+    terms: int
     diagnostics: int = 0
     elapsed_ms: int = 0
 
@@ -87,6 +99,44 @@ def run(
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
         return RunStats(**{**asdict(stats), "elapsed_ms": elapsed_ms})
+    finally:
+        con.close()
+
+
+def unlink(
+    config: Config,
+    db_path: Path,
+    dry_run: bool = False,
+    verbose: bool = False,
+    reindex: bool = False,
+) -> UnlinkStats:
+    t0 = time.perf_counter()
+
+    if config.tags_file is not None and isinstance(config.tags_file, str):
+        config.tags_file = Path(config.tags_file)
+
+    if config.tags_file is None or not config.tags_file.exists():
+        raise SystemExit("tagfile is required and must exist: use --tagfile /path/to/tags.txt")
+
+    terms = load_terms_from_tagfile(config.tags_file)
+    con = ensure_db(db_path)
+
+    try:
+        stats = _unlink_with_db(
+            con,
+            config,
+            terms,
+            dry_run=dry_run,
+            verbose=verbose,
+            reindex=reindex,
+        )
+        if dry_run:
+            con.rollback()
+        else:
+            con.commit()
+
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        return UnlinkStats(**{**asdict(stats), "elapsed_ms": elapsed_ms})
     finally:
         con.close()
 
@@ -155,6 +205,16 @@ def _run_with_db(
         assert text is not None
         assert encoding is not None
 
+        if is_managed_hub(text, config.hub_marker_start, config.hub_marker_end):
+            if not dry_run:
+                upsert_file(con, rel, mtime_ns, size, sha1)
+            if verbose and processed % 200 == 0:
+                print(
+                    f"[vault-linker] processed={processed} "
+                    f"wrote_notes={wrote_notes} links={inserted_links}"
+                )
+            continue
+
         note = parse_note_text(path, text, encoding)
         diagnostics_count += len(note.diagnostics)
 
@@ -200,9 +260,15 @@ def _run_with_db(
             if not dry_run:
                 atomic_write(path, new_text, encoding="utf-8")
 
-        if not dry_run:
-            upsert_file(con, rel, mtime_ns, size, sha1)
-            replace_mentions(con, rel, found_terms)
+                # Critical: refresh cache metadata AFTER write
+                new_raw, new_sha1 = read_bytes_and_hash(path)
+                new_mtime_ns, new_size = stat_file(path)
+                upsert_file(con, rel, new_mtime_ns, new_size, new_sha1)
+                replace_mentions(con, rel, found_terms)
+        else:
+            if not dry_run:
+                upsert_file(con, rel, mtime_ns, size, sha1)
+                replace_mentions(con, rel, found_terms)
 
         if discover:
             title = path.stem
@@ -225,6 +291,8 @@ def _run_with_db(
     hubs_updated = 0
     for term in sorted(terms, key=lambda s: s.lower()):
         rels = get_backlinks(con, term)
+        if not rels:
+            continue
         hub_path = config.hub_path_for(term)
         did = update_hub_page(
             hub_path,
@@ -238,9 +306,6 @@ def _run_with_db(
             hubs_updated += 1
 
     hubs_scrubbed = 0
-    if not dry_run:
-        hub_root = config.hub_dir if config.hub_dir is not None else vault
-        hubs_scrubbed = scrub_all_hubs(hub_root, config.hub_marker_start, config.hub_marker_end)
 
     candidates_written = 0
     if discover and cand_items:
@@ -275,6 +340,91 @@ def _run_with_db(
         hubs_scrubbed=hubs_scrubbed,
         terms=len(terms),
         candidates_written=candidates_written,
+        diagnostics=diagnostics_count,
+        elapsed_ms=0,
+    )
+
+
+def _unlink_with_db(
+    con: sqlite3.Connection,
+    config: Config,
+    terms: list[str],
+    dry_run: bool,
+    verbose: bool,
+    reindex: bool,
+) -> UnlinkStats:
+    vault = config.vault
+    files = list(iter_markdown_files(vault, config.ignore_dirs))
+
+    scanned = 0
+    processed = 0
+    wrote_notes = 0
+    removed_links = 0
+    diagnostics_count = 0
+
+    for path in files:
+        scanned += 1
+        rel = str(path.relative_to(vault))
+
+        try:
+            mtime_ns, size = stat_file(path)
+        except FileNotFoundError:
+            continue
+
+        cached = None if reindex else get_cached_file(con, rel)
+        if cached and cached[0] == mtime_ns and cached[1] == size:
+            continue
+
+        processed += 1
+
+        raw, sha1 = read_bytes_and_hash(path)
+
+        text, encoding, diag = decode_bytes_strict(raw, path, config.allowed_encodings)
+        if diag is not None:
+            diagnostics_count += 1
+            if verbose:
+                print(f"[vault-linker] skip unreadable: {rel} ({diag.code})")
+            continue
+        assert text is not None
+        assert encoding is not None
+
+        if is_managed_hub(text, config.hub_marker_start, config.hub_marker_end):
+            if not dry_run:
+                upsert_file(con, rel, mtime_ns, size, sha1)
+            if verbose and processed % 200 == 0:
+                print(
+                    f"[vault-linker:unlink] processed={processed} "
+                    f"wrote_notes={wrote_notes} removed_links={removed_links}"
+                )
+            continue
+
+        new_text, removed = unlink_approved_wikilinks(text, terms)
+
+        if new_text != text:
+            wrote_notes += 1
+            removed_links += removed
+            if not dry_run:
+                atomic_write(path, new_text, encoding="utf-8")
+                new_raw, new_sha1 = read_bytes_and_hash(path)
+                new_mtime_ns, new_size = stat_file(path)
+                upsert_file(con, rel, new_mtime_ns, new_size, new_sha1)
+                replace_mentions(con, rel, set())
+        else:
+            if not dry_run:
+                upsert_file(con, rel, mtime_ns, size, sha1)
+
+        if verbose and processed % 200 == 0:
+            print(
+                f"[vault-linker:unlink] processed={processed} "
+                f"wrote_notes={wrote_notes} removed_links={removed_links}"
+            )
+
+    return UnlinkStats(
+        scanned=scanned,
+        processed=processed,
+        wrote_notes=wrote_notes,
+        removed_links=removed_links,
+        terms=len(terms),
         diagnostics=diagnostics_count,
         elapsed_ms=0,
     )
