@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,15 +5,15 @@ from pathlib import Path
 
 def load_terms_from_tagfile(path: Path) -> list[str]:
     """
-    Tag vocab is a plain text file containing comma-separated values.
-    Also tolerates one term per line.
-    Example:
-      Canada, Treaty 9, COVID-19
-      1934, 1935
+    Accepts:
+      - comma-separated values
+      - one term per line
+      - optional comment lines starting with // or #
 
-    Returns a list of normalized terms (deduped, stable order).
+    Returns normalized terms, deduped in stable order.
     """
-    text = path.read_text(encoding="utf-8", errors="replace")
+    text = path.read_text(encoding="utf-8-sig", errors="strict")
+
     seen: set[str] = set()
     out: list[str] = []
 
@@ -22,7 +21,7 @@ def load_terms_from_tagfile(path: Path) -> list[str]:
         line = raw_line.strip()
         if not line:
             continue
-        if line.startswith("//"):
+        if line.startswith("//") or line.startswith("#"):
             continue
         if "//" in line:
             line = line.split("//", 1)[0].strip()
@@ -30,16 +29,12 @@ def load_terms_from_tagfile(path: Path) -> list[str]:
                 continue
 
         for part in line.split(","):
-            t = part.strip()
+            t = " ".join(part.strip().split())
             if not t:
                 continue
-            if t.startswith("#"):
-                t = t[1:].strip()
-            if t.startswith("-"):
-                t = t[1:].strip()
-            t = " ".join(t.split())
-            if t and t.lower() not in seen:
-                seen.add(t.lower())
+            key = t.lower()
+            if key not in seen:
+                seen.add(key)
                 out.append(t)
 
     return out

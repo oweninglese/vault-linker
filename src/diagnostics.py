@@ -1,17 +1,22 @@
-from pydantic import BaseModel
-from enum import Enum
-from typing import Optional, Any
+from __future__ import annotations
 
-class Severity(Enum):
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+
+
+class Severity(str, Enum):
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
 
-class Diagnostic(BaseModel):
+
+@dataclass(frozen=True)
+class Diagnostic:
     code: str
     message: str
     severity: Severity
-    path: Optional[str] = None
-    context: Optional[Any] = None
+    path: str | None = None
+    context: Any = None

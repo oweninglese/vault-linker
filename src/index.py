@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -53,10 +52,9 @@ def ensure_db(db_path: Path) -> sqlite3.Connection:
 def iter_markdown_files(vault: Path, ignore_dirs: Iterable[str]) -> Iterator[Path]:
     ignore = set(ignore_dirs)
     for root, dirs, files in os.walk(vault):
-        # Prune directories in-place for speed
-        dirs[:] = [d for d in dirs if d not in ignore]
-        for fn in files:
-            if fn.endswith(".md"):
+        dirs[:] = sorted(d for d in dirs if d not in ignore)
+        for fn in sorted(files):
+            if fn.lower().endswith(".md"):
                 yield Path(root) / fn
 
 
@@ -65,13 +63,16 @@ def stat_file(path: Path) -> tuple[int, int]:
     return st.st_mtime_ns, st.st_size
 
 
-def read_and_hash(path: Path) -> tuple[str, str]:
-    b = path.read_bytes()
-    return b.decode("utf-8", errors="replace"), _sha1_bytes(b)
+def read_bytes_and_hash(path: Path) -> tuple[bytes, str]:
+    raw = path.read_bytes()
+    return raw, _sha1_bytes(raw)
 
 
 def get_cached_file(con: sqlite3.Connection, rel: str) -> tuple[int, int, str] | None:
-    row = con.execute("SELECT mtime_ns, size, sha1 FROM files WHERE rel = ?", (rel,)).fetchone()
+    row = con.execute(
+        "SELECT mtime_ns, size, sha1 FROM files WHERE rel = ?",
+        (rel,),
+    ).fetchone()
     if not row:
         return None
     return int(row[0]), int(row[1]), str(row[2])
@@ -80,16 +81,23 @@ def get_cached_file(con: sqlite3.Connection, rel: str) -> tuple[int, int, str] |
 def upsert_file(con: sqlite3.Connection, rel: str, mtime_ns: int, size: int, sha1: str) -> None:
     con.execute(
         "INSERT INTO files(rel, mtime_ns, size, sha1) VALUES(?,?,?,?) "
-        "ON CONFLICT(rel) DO UPDATE SET mtime_ns=excluded.mtime_ns, size=excluded.size, sha1=excluded.sha1",
+        "ON CONFLICT(rel) DO UPDATE SET "
+        "mtime_ns=excluded.mtime_ns, size=excluded.size, sha1=excluded.sha1",
         (rel, mtime_ns, size, sha1),
     )
 
 
 def replace_mentions(con: sqlite3.Connection, rel: str, terms: set[str]) -> None:
     con.execute("DELETE FROM mentions WHERE rel = ?", (rel,))
-    con.executemany("INSERT OR IGNORE INTO mentions(rel, term) VALUES(?,?)", [(rel, t) for t in sorted(terms)])
+    con.executemany(
+        "INSERT OR IGNORE INTO mentions(rel, term) VALUES(?,?)",
+        [(rel, t) for t in sorted(terms, key=str.lower)],
+    )
 
 
 def get_backlinks(con: sqlite3.Connection, term: str) -> list[str]:
-    rows = con.execute("SELECT rel FROM mentions WHERE term = ? ORDER BY rel", (term,)).fetchall()
+    rows = con.execute(
+        "SELECT rel FROM mentions WHERE term = ? ORDER BY rel",
+        (term,),
+    ).fetchall()
     return [str(r[0]) for r in rows]
