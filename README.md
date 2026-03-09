@@ -49,6 +49,60 @@ Vault-Linker solves this by enforcing **deterministic automated linking** based 
 
 The result is a Markdown vault that behaves like a **knowledge graph while remaining plain text.**
 
+                INPUT SOURCES
+         ┌────────────────────────┐
+         │ PDFs • Markdown • Text │
+         └────────────┬───────────┘
+                      │
+                      ▼
+             OCR / TEXT EXTRACTION
+         ┌─────────────────────────┐
+         │ pdfminer / tesseract    │
+         │ recover raw text        │
+         └────────────┬────────────┘
+                      │
+                      ▼
+            TEXT NORMALIZATION
+         ┌─────────────────────────┐
+         │ whitespace cleanup      │
+         │ punctuation repair      │
+         │ paragraph reconstruction│
+         └────────────┬────────────┘
+                      │
+                      ▼
+          DOCUMENT / VAULT NORMALIZATION
+         ┌─────────────────────────┐
+         │ frontmatter validation  │
+         │ tag normalization       │
+         │ filename policy         │
+         │ link consistency        │
+         └────────────┬────────────┘
+                      │
+                      ▼
+           SEMANTIC TAGGING LAYER
+         ┌─────────────────────────┐
+         │ entity extraction       │
+         │ vocabulary resolution   │
+         │ flavor inference        │
+         └────────────┬────────────┘
+                      │
+                      ▼
+             KNOWLEDGE GRAPH
+         ┌─────────────────────────┐
+         │ cigars                  │
+         │ brands                  │
+         │ factories               │
+         │ flavors                 │
+         └────────────┬────────────┘
+                      │
+                      ▼
+                WEBSITE / API
+         ┌─────────────────────────┐
+         │ search                  │
+         │ graph exploration       │
+         │ recommendations         │
+         └─────────────────────────┘
+
 ---
 
 # Example: Before / After
