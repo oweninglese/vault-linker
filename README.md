@@ -102,7 +102,12 @@ The result is a Markdown vault that behaves like a **knowledge graph while remai
          │ graph exploration       │
          │ recommendations         │
          └─────────────────────────┘
+Vault-Linker processes raw documents through a deterministic pipeline
+consisting of extraction, text normalization, vault normalization,
+semantic tagging, and graph construction.
 
+Each stage is idempotent and produces structured artifacts that can be
+re-run safely without corrupting the vault.
 ---
 
 # Example: Before / After
